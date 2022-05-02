@@ -25,20 +25,23 @@ HOMEWORK_STATUSES = {
 
 
 def send_message(bot, message):
+    """Отправляет сообщение в Telegram чат."""
     bot.send_message(TELEGRAM_CHAT_ID, message)
 
 
 def get_api_answer(current_timestamp):
+    """Делает запрос к единственному эндпоинту API-сервиса."""
     timestamp = current_timestamp or int(time.time())
     params = {'from_date': timestamp}
     response = requests.get(ENDPOINT, headers=HEADERS, params=params)
-    if response.status_code !=200:
+    if response.status_code != 200:
         raise Exception('сервер не отвечает')
     home_work_inform = response.json()
     return (home_work_inform)
 
 
 def check_response(response):
+    """Проверяет ответ API на корректность."""
     if not isinstance(response, dict):
         raise TypeError('неизвестный тип данных')
     homeworks = response.get('homeworks')
@@ -50,6 +53,7 @@ def check_response(response):
 
 
 def parse_status(homework):
+    """Извлекает статус домашней работы работы."""
     homework_name = homework.get('homework_name')
     homework_status = homework.get('status')
     if homework_status is None:
@@ -61,6 +65,7 @@ def parse_status(homework):
 
 
 def check_tokens():
+    """Проверяет доступность переменных окружения."""
     if PRACTICUM_TOKEN and TELEGRAM_TOKEN and TELEGRAM_CHAT_ID:
         return True
     return False
