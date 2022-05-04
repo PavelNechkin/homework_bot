@@ -2,12 +2,12 @@ import logging
 import os
 import time
 from http import HTTPStatus
+from logging.handlers import RotatingFileHandler
 
 import requests
-from simplejson.errors import JSONDecodeError
 from dotenv import load_dotenv
+from simplejson.errors import JSONDecodeError
 from telegram import Bot, TelegramError
-from logging.handlers import RotatingFileHandler
 
 load_dotenv()
 
