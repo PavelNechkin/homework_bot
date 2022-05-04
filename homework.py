@@ -1,19 +1,28 @@
-import requests
-import os
 import logging
-
-from telegram import Bot
+import os
 import time
+from http import HTTPStatus
 
+import requests
+from simplejson.errors import JSONDecodeError
 from dotenv import load_dotenv
+from telegram import Bot, TelegramError
+from logging.handlers import RotatingFileHandler
 
 load_dotenv()
 
-logging.basicConfig(
-    level=logging.DEBUG,
-    filename='program.log',
-    format='%(asctime)s, %(levelname)s, %(message)s, %(name)s'
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+handler = RotatingFileHandler(
+    'my_logger.log',
+    maxBytes=50000000,
+    backupCount=5
 )
+logger.addHandler(handler)
+formatter = logging.Formatter(
+    '%(asctime)s, %(levelname)s, %(message)s, %(name)s'
+)
+handler.setFormatter(formatter)
 
 PRACTICUM_TOKEN = os.getenv('PRACTICUM_TOKEN')
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
@@ -30,38 +39,51 @@ HOMEWORK_STATUSES = {
 }
 
 
+class ServerError(Exception):
+    """Ошибки сервера."""
+
+    pass
+
+
 def send_message(bot, message):
     """Отправляет сообщение в Telegram чат."""
     try:
         bot.send_message(TELEGRAM_CHAT_ID, message)
-        logging.info('Message sent')
-    except Exception:
-        logging.error('Bot was unable to send a message')
+        logger.info('Message sent')
+    except TelegramError:
+        logger.error('Bot was unable to send a message')
+        raise TelegramError
 
 
 def get_api_answer(current_timestamp):
     """Делает запрос к единственному эндпоинту API-сервиса."""
     timestamp = current_timestamp or int(time.time())
     params = {'from_date': timestamp}
-    response = requests.get(ENDPOINT, headers=HEADERS, params=params)
-    if response.status_code != 200:
-        logging.error('Server is not responding')
-        raise Exception('сервер не отвечает')
-    home_work_inform = response.json()
-    return (home_work_inform)
+    try:
+        response = requests.get(ENDPOINT, headers=HEADERS, params=params)
+    except ServerError:
+        logger.error('Server is not responding')
+    if response.status_code != HTTPStatus.OK:
+        logger.error('Server is not responding')
+        raise ServerError('сервер не отвечает')
+    try:
+        home_work_inform = response.json()
+    except JSONDecodeError:
+        logger.error('Json conversion error')
+    return home_work_inform
 
 
 def check_response(response):
     """Проверяет ответ API на корректность."""
     if not isinstance(response, dict):
-        logging.error('Unknown data type')
+        logger.error('Unknown data type')
         raise TypeError('неизвестный тип данных')
     homeworks = response.get('homeworks')
     if not isinstance(homeworks, list):
-        logging.error('Unknown data type')
+        logger.error('Unknown data type')
         raise TypeError('неизвестный тип данных')
     if homeworks is None:
-        logging.error('API response does not contain a key')
+        logger.error('API response does not contain a key')
         raise KeyError('Ответ API не содержит ключ')
     return homeworks
 
@@ -71,10 +93,10 @@ def parse_status(homework):
     homework_name = homework.get('homework_name')
     homework_status = homework.get('status')
     if homework_status is None:
-        logging.error('API response does not contain required information')
+        logger.error('API response does not contain required information')
         raise KeyError('Ответ API не содержит необходимую информацию')
     if homework_name is None:
-        logging.error('API response does not contain required information')
+        logger.error('API response does not contain required information')
         raise KeyError('Ответ API не содержит необходимую информацию')
     verdict = HOMEWORK_STATUSES[homework_status]
     return f'Изменился статус проверки работы "{homework_name}". {verdict}'
@@ -84,7 +106,7 @@ def check_tokens():
     """Проверяет доступность переменных окружения."""
     if PRACTICUM_TOKEN and TELEGRAM_TOKEN and TELEGRAM_CHAT_ID:
         return True
-    logging.critical('Missing required environment variables')
+    logger.critical('Missing required environment variables')
     return False
 
 
