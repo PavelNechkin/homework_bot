@@ -1,5 +1,6 @@
 import requests
 import os
+import logging
 
 from telegram import Bot
 import time
@@ -8,6 +9,11 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+logging.basicConfig(
+    level=logging.DEBUG,
+    filename='program.log',
+    format='%(asctime)s, %(levelname)s, %(message)s, %(name)s'
+)
 
 PRACTICUM_TOKEN = os.getenv('PRACTICUM_TOKEN')
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
@@ -26,7 +32,11 @@ HOMEWORK_STATUSES = {
 
 def send_message(bot, message):
     """Отправляет сообщение в Telegram чат."""
-    bot.send_message(TELEGRAM_CHAT_ID, message)
+    try:
+        bot.send_message(TELEGRAM_CHAT_ID, message)
+        logging.info('Message sent')
+    except Exception:
+        logging.error('Bot was unable to send a message')
 
 
 def get_api_answer(current_timestamp):
@@ -35,6 +45,7 @@ def get_api_answer(current_timestamp):
     params = {'from_date': timestamp}
     response = requests.get(ENDPOINT, headers=HEADERS, params=params)
     if response.status_code != 200:
+        logging.error('Server is not responding')
         raise Exception('сервер не отвечает')
     home_work_inform = response.json()
     return (home_work_inform)
@@ -43,11 +54,14 @@ def get_api_answer(current_timestamp):
 def check_response(response):
     """Проверяет ответ API на корректность."""
     if not isinstance(response, dict):
+        logging.error('Unknown data type')
         raise TypeError('неизвестный тип данных')
     homeworks = response.get('homeworks')
     if not isinstance(homeworks, list):
+        logging.error('Unknown data type')
         raise TypeError('неизвестный тип данных')
     if homeworks is None:
+        logging.error('API response does not contain a key')
         raise KeyError('Ответ API не содержит ключ')
     return homeworks
 
@@ -57,8 +71,10 @@ def parse_status(homework):
     homework_name = homework.get('homework_name')
     homework_status = homework.get('status')
     if homework_status is None:
+        logging.error('API response does not contain required information')
         raise KeyError('Ответ API не содержит необходимую информацию')
     if homework_name is None:
+        logging.error('API response does not contain required information')
         raise KeyError('Ответ API не содержит необходимую информацию')
     verdict = HOMEWORK_STATUSES[homework_status]
     return f'Изменился статус проверки работы "{homework_name}". {verdict}'
@@ -68,6 +84,7 @@ def check_tokens():
     """Проверяет доступность переменных окружения."""
     if PRACTICUM_TOKEN and TELEGRAM_TOKEN and TELEGRAM_CHAT_ID:
         return True
+    logging.critical('Missing required environment variables')
     return False
 
 
@@ -88,7 +105,8 @@ def main():
 
         except Exception as error:
             message = f'Сбой в работе программы: {error}'
-            send_message(bot, message)
+            if message != message:
+                send_message(bot, message)
             time.sleep(RETRY_TIME)
 
 
