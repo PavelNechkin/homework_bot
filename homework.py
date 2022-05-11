@@ -6,8 +6,8 @@ from logging.handlers import RotatingFileHandler
 
 import requests
 from dotenv import load_dotenv
-
 from telegram import Bot, TelegramError
+import simplejson
 
 load_dotenv()
 
@@ -39,12 +39,6 @@ HOMEWORK_STATUSES = {
 }
 
 
-class ServerError(Exception):
-    """Ошибки сервера."""
-
-    pass
-
-
 def send_message(bot, message):
     """Отправляет сообщение в Telegram чат."""
     try:
@@ -61,16 +55,17 @@ def get_api_answer(current_timestamp):
     params = {'from_date': timestamp}
     try:
         response = requests.get(ENDPOINT, headers=HEADERS, params=params)
-    except ServerError:
+    except ConnectionError:
         logger.error('Server is not responding')
+        raise ConnectionError('сервер не отвечает')
     if response.status_code != HTTPStatus.OK:
         logger.error('Server is not responding')
-        raise ServerError('сервер не отвечает')
+        raise ConnectionError('сервер не отвечает')
     try:
         home_work_inform = response.json()
-    except ValueError:
+    except simplejson.errors.JSONDecodeError:
         logger.error('Json conversion error')
-        raise ValueError('Ошибка при ковертации json')
+        raise simplejson.errors.JSONDecodeError('Ошибка при ковертации json')
     return home_work_inform
 
 
