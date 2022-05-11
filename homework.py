@@ -7,7 +7,7 @@ from logging.handlers import RotatingFileHandler
 import requests
 from dotenv import load_dotenv
 from telegram import Bot, TelegramError
-import simplejson
+import json
 
 load_dotenv()
 
@@ -63,9 +63,9 @@ def get_api_answer(current_timestamp):
         raise ConnectionError('сервер не отвечает')
     try:
         home_work_inform = response.json()
-    except simplejson.errors.JSONDecodeError:
+    except json.decoder.JSONDecodeError:
         logger.error('Json conversion error')
-        raise simplejson.errors.JSONDecodeError('Ошибка при ковертации json')
+        raise json.decoder.JSONDecodeError('Ошибка при ковертации json')
     return home_work_inform
 
 
