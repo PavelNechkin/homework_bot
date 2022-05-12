@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import time
@@ -7,7 +8,6 @@ from logging.handlers import RotatingFileHandler
 import requests
 from dotenv import load_dotenv
 from telegram import Bot, TelegramError
-import json
 
 load_dotenv()
 
@@ -55,9 +55,20 @@ def get_api_answer(current_timestamp):
     params = {'from_date': timestamp}
     try:
         response = requests.get(ENDPOINT, headers=HEADERS, params=params)
-    except ConnectionError:
-        logger.error('Server is not responding')
-        raise ConnectionError('сервер не отвечает')
+    except requests.exceptions.HTTPError:
+        logger.error('HTTP Error')
+        raise requests.exceptions.HTTPError('ошибка HTTP')
+    except requests.exceptions.ConnectionError:
+        logger.error('Connection Error')
+        raise requests.exceptions.ConnectionError('ошибка соединения')
+    except requests.exceptions.Timeout:
+        logger.error('Timeout Error')
+        raise requests.exceptions.Timeout('превышено время ответа сервера')
+    except requests.exceptions.RequestException:
+        logger.error('OOps: Something Else')
+        raise requests.exceptions.RequestException(
+            'мы храбро сражались, но сервер все же неотвечает. ХЗ почему'
+        )
     if response.status_code != HTTPStatus.OK:
         logger.error('Server is not responding')
         raise ConnectionError('сервер не отвечает')
